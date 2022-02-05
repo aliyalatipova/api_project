@@ -2,10 +2,12 @@ import os
 import sys
 
 import requests
-from PyQt5 import QtCore
-from PyQt5.QtCore import Qt
+from PyQt5 import QtCore, uic
+from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel
+from PyQt5.QtGui import QPainter, QColor
+from PyQt5.QtWidgets import QApplication, QWidget
+from PyQt5.QtWidgets import QMessageBox
 
 SCREEN_SIZE = [450, 450]
 
@@ -17,11 +19,23 @@ class MainWindow(QWidget):
     layer = "map"  # изменяя этот параметр меняем слои
     coords = [37.529887, 55.702118]  # координаты
     spn = 0.002  # изменяя это значение меняем масштаб карты
+    search_success = False
 
     def __init__(self):
         super().__init__()
         self.initUI()
         self.keyPressed.connect(self.on_key)
+        self.search_edit.installEventFilter(self)
+        # self.search_edit.keyPressed.connect(self.on_key)
+        # self.search_button.keyPressed.connect(self.on_key)
+        self.search_success = False
+
+    def eventFilter(self, source, event):
+        if (event.type() == QEvent.KeyPress and source is self.search_edit):
+            if event.key() == Qt.Key_Right or event.key() == Qt.Key_Left:
+                self.on_key(event)
+            # print('key press:', (event.key(), event.text()))
+        return super(MainWindow, self).eventFilter(source, event)
 
     def getImage(self):
         map_request = "http://static-maps.yandex.ru/1.x/"
@@ -62,30 +76,71 @@ class MainWindow(QWidget):
             self.coords[0] += self.spn * 2
         # перезагрузим картинку и перерисуем
         if pressed:
+            self.search_success = False
             self.getImage()
             self.pixmap = QPixmap()
             self.pixmap.loadFromData(self.content)
-            self.image.setPixmap(self.pixmap)
+            self.repaint()
 
     def initUI(self):
-        self.setGeometry(100, 100, *SCREEN_SIZE)
+        uic.loadUi('map.ui', self)  # Загружаем дизайн
         self.setWindowTitle('Отображение карты')
+        self.search_button.clicked.connect(self.search)
+        self.search_edit.returnPressed.connect(self.search)
 
         ## Изображение
-        self.image = QLabel(self)
-        self.image.move(0, 0)
-        self.image.resize(SCREEN_SIZE[0], SCREEN_SIZE[1])
         self.getImage()
         self.pixmap = QPixmap()
         self.pixmap.loadFromData(self.content)
-        self.image.setPixmap(self.pixmap)
 
         # Отключаем кнопки минимизации и разворачивания
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowMaximizeButtonHint)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowMinimizeButtonHint)
 
-    def closeEvent(self, event):
-        pass
+    def paintEvent(self, event):
+        # Создаем объект QPainter для рисования
+        qp = QPainter(self)
+        qp.drawPixmap(0, 0, SCREEN_SIZE[0], SCREEN_SIZE[1], self.pixmap)
+        if self.search_success:
+            qp.setBrush(QColor(255, 0, 0))
+            qp.drawEllipse(SCREEN_SIZE[0] // 2, SCREEN_SIZE[1] // 2, 5, 5)
+
+    def search(self):
+        search_string = self.search_edit.text()
+        map_request = "https://geocode-maps.yandex.ru/1.x"
+        map_request += f"?apikey={self.api_key}"
+        map_request += f"&geocode={search_string}"
+        map_request += f"&results=1"
+        map_request += f"&format=json"
+        response = requests.get(map_request)
+        if response.status_code == 200:
+            result = response.json()
+            # print(result['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['Point']['pos'])
+            # print(result)
+            search_count = int(result['response']['GeoObjectCollection']['metaDataProperty']['GeocoderResponseMetaData']['found'])
+            if search_count != 0:
+                coords_up = result['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['boundedBy']['Envelope']['lowerCorner']
+                coords_low = result['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['boundedBy']['Envelope']['upperCorner']
+                self.coords = coords_up.split(' ')
+                for i in range(len(self.coords)):
+                    self.coords[i] = float(self.coords[i])
+                spn0 = abs(float(coords_low.split(' ')[0]) - self.coords[0])
+                spn1 = abs(float(coords_low.split(' ')[1]) - self.coords[1])
+                self.spn = min(spn0, spn1)
+                self.coords[0] += spn0 / 2 - spn1 / 2
+                self.getImage()
+                self.pixmap = QPixmap()
+                self.pixmap.loadFromData(self.content)
+                self.search_success = True
+                self.repaint()
+                return
+
+        dlg = QMessageBox(self)
+        dlg.setWindowTitle("Упс..")
+        dlg.setText("Не найдено")
+        dlg.setStandardButtons(QMessageBox.Ok)
+        dlg.setIcon(QMessageBox.Warning)
+        dlg.exec()
 
 
 if __name__ == '__main__':
