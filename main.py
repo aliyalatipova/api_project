@@ -135,13 +135,13 @@ class MainWindow(QWidget):
             # print(result)
             search_count = int(result['response']['GeoObjectCollection']['metaDataProperty']['GeocoderResponseMetaData']['found'])
             if search_count != 0:
-                coords_up = result['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['boundedBy']['Envelope']['lowerCorner']
-                coords_low = result['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['boundedBy']['Envelope']['upperCorner']
-                self.coords = coords_up.split(' ')
+                coords_lower = result['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['boundedBy']['Envelope']['lowerCorner']
+                coords_upper = result['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['boundedBy']['Envelope']['upperCorner']
+                self.coords = coords_lower.split(' ')
                 for i in range(len(self.coords)):
                     self.coords[i] = float(self.coords[i])
-                spn0 = abs(float(coords_low.split(' ')[0]) - self.coords[0])
-                spn1 = abs(float(coords_low.split(' ')[1]) - self.coords[1])
+                spn0 = abs(float(coords_upper.split(' ')[0]) - self.coords[0])
+                spn1 = abs(float(coords_upper.split(' ')[1]) - self.coords[1])
                 self.spn = min(spn0, spn1)
                 self.coords[0] += spn0 / 2 - spn1 / 2
                 self.getImage()
