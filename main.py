@@ -36,8 +36,6 @@ class MainWindow(QWidget):
     def getImage(self):
         map_request = "http://static-maps.yandex.ru/1.x/"
         map_request += f"?apikey={self.api_key}"
-        # map_request += f"&ll={self.coords[0]},{self.coords[1]}"
-        # map_request += f"&spn={self.spn},{self.spn}"
         map_request += f"&bbox={self.coords[0]},{self.coords[1]}~{self.coords[0] + self.spn},{self.coords[1] + self.spn}"
         map_request += f"&l={self.layer}"
         map_request += f"&size={SCREEN_SIZE[0]},{SCREEN_SIZE[1]}"
@@ -131,7 +129,6 @@ class MainWindow(QWidget):
         response = requests.get(map_request)
         if response.status_code == 200:
             result = response.json()
-            # print(result['response']['GeoObjectCollection']['featureMember'][0]['GeoObject']['Point']['pos'])
             # print(result)
             search_count = int(result['response']['GeoObjectCollection']['metaDataProperty']['GeocoderResponseMetaData']['found'])
             if search_count != 0:
@@ -144,11 +141,8 @@ class MainWindow(QWidget):
                 spn1 = abs(float(coords_upper.split(' ')[1]) - self.coords[1])
                 self.spn = min(spn0, spn1)
                 self.coords[0] += spn0 / 2 - spn1 / 2
-                self.getImage()
-                self.pixmap = QPixmap()
-                self.pixmap.loadFromData(self.content)
                 self.search_success = True
-                self.repaint()
+                self.rerun()
                 return
 
         dlg = QMessageBox(self)
