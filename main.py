@@ -24,17 +24,13 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
-        self.keyPressed.connect(self.on_key)
-        self.search_edit.installEventFilter(self)
-        # self.search_edit.keyPressed.connect(self.on_key)
-        # self.search_button.keyPressed.connect(self.on_key)
         self.search_success = False
 
     def eventFilter(self, source, event):
-        if (event.type() == QEvent.KeyPress and source is self.search_edit):
-            if event.key() == Qt.Key_Right or event.key() == Qt.Key_Left:
-                self.on_key(event)
-            # print('key press:', (event.key(), event.text()))
+        if event.type() == QEvent.KeyPress:
+            if source is self.search_edit or source is self.search_button or source is self.btn_map or source is self.btn_sat or source is self.btn_skl:
+                if event.key() == Qt.Key_Right or event.key() == Qt.Key_Left or event.key() == Qt.Key_Down or event.key() == Qt.Key_Up:
+                    self.on_key(event)
         return super(MainWindow, self).eventFilter(source, event)
 
     def getImage(self):
@@ -77,16 +73,36 @@ class MainWindow(QWidget):
         # перезагрузим картинку и перерисуем
         if pressed:
             self.search_success = False
-            self.getImage()
-            self.pixmap = QPixmap()
-            self.pixmap.loadFromData(self.content)
-            self.repaint()
+            self.rerun()
+
+    def rerun(self):
+        self.getImage()
+        self.pixmap = QPixmap()
+        self.pixmap.loadFromData(self.content)
+        self.repaint()
+
+    def map(self):
+        self.layer = "map"
+        self.rerun()
+
+    def sat(self):
+        self.layer = "sat"
+        self.rerun()
+
+    def skl(self):
+        self.layer = "sat,skl"
+        self.rerun()
 
     def initUI(self):
         uic.loadUi('map.ui', self)  # Загружаем дизайн
         self.setWindowTitle('Отображение карты')
         self.search_button.clicked.connect(self.search)
         self.search_edit.returnPressed.connect(self.search)
+        self.keyPressed.connect(self.on_key)
+        self.search_edit.installEventFilter(self)
+        self.btn_map.clicked.connect(self.map)
+        self.btn_sat.clicked.connect(self.sat)
+        self.btn_skl.clicked.connect(self.skl)
 
         ## Изображение
         self.getImage()
