@@ -110,7 +110,7 @@ class MainWindow(QWidget):
         self.rerun()
 
     def initUI(self):
-        uic.loadUi('test9.ui', self)  # Загружаем дизайн
+        uic.loadUi('test11.ui', self)  # Загружаем дизайн
         self.setWindowTitle('Отображение карты')
         self.search_button.clicked.connect(self.search)
         self.search_edit.returnPressed.connect(self.search)
